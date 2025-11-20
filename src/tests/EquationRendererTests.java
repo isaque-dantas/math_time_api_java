@@ -24,6 +24,12 @@ public class EquationRendererTests {
             add(4F);
         }
     };
+    ArrayList<Float> membersWithZero = new ArrayList<>() {
+        {
+            add(0F);
+        }
+    };
+    ArrayList<Float> emptyArray = new ArrayList<>();
 
     Equation defaultEquation = new Equation(variableMembers, nonVariableMembers, 0);
     RenderingOptions defaultRenderingOptions = new RenderingOptions('x', false, 0);
@@ -65,5 +71,73 @@ public class EquationRendererTests {
         RenderingOptions options = new RenderingOptions('x', false, 1);
         String renderedEquation = EquationRenderer.render(defaultEquation, options);
         assertEquals("2x + 1x + 3 = -4", renderedEquation);
+    }
+
+    @Test
+    void testSplitInTwoSides_CaseA() {
+        // Act
+        var split = EquationRenderer.splitInTwoSides(defaultEquation.variableMembers(), defaultEquation.nonVariableMembers(), 0);
+        var firstSideVariableMembers = split.get("firstSideVariableMembers");
+        var firstSideNonVariableMembers = split.get("firstSideNonVariableMembers");
+        var secondSideVariableMembers = split.get("secondSideVariableMembers");
+        var secondSideNonVariableMembers = split.get("secondSideNonVariableMembers");
+
+        // Assert
+        assertEquals(defaultEquation.variableMembers(), firstSideVariableMembers);
+        assertEquals(defaultEquation.nonVariableMembers(), firstSideNonVariableMembers);
+        assertEquals(emptyArray, secondSideVariableMembers);
+        assertEquals(membersWithZero, secondSideNonVariableMembers);
+    }
+
+    @Test
+    void testSplitInTwoSides_CaseB() {
+        // Arrange
+        var expectedSecondSideVariableMembers = new ArrayList<Float>();
+        expectedSecondSideVariableMembers.add(-2F);
+        expectedSecondSideVariableMembers.add(-1F);
+
+        var expectedSecondSideNonVariableMembers = new ArrayList<Float>();
+        expectedSecondSideNonVariableMembers.add(-3F);
+        expectedSecondSideNonVariableMembers.add(-4F);
+
+        // Act
+        var split = EquationRenderer.splitInTwoSides(defaultEquation.variableMembers(), defaultEquation.nonVariableMembers(), 10);
+        var firstSideVariableMembers = split.get("firstSideVariableMembers");
+        var firstSideNonVariableMembers = split.get("firstSideNonVariableMembers");
+        var secondSideVariableMembers = split.get("secondSideVariableMembers");
+        var secondSideNonVariableMembers = split.get("secondSideNonVariableMembers");
+
+        // Assert
+        assertEquals(emptyArray, firstSideVariableMembers);
+        assertEquals(membersWithZero, firstSideNonVariableMembers);
+        assertEquals(expectedSecondSideVariableMembers, secondSideVariableMembers);
+        assertEquals(expectedSecondSideNonVariableMembers, secondSideNonVariableMembers);
+    }
+
+    @Test
+    void testSplitInTwoSides_CaseD() {
+        // Arrange
+        var expectedFirstSideVariableMembers = new ArrayList<Float>();
+        expectedFirstSideVariableMembers.add(2F);
+        expectedFirstSideVariableMembers.add(1F);
+
+        var expectedFirstSideNonVariableMembers = new ArrayList<Float>();
+        expectedFirstSideNonVariableMembers.add(3F);
+
+        var expectedSecondSideNonVariableMembers = new ArrayList<Float>();
+        expectedSecondSideNonVariableMembers.add(-4F);
+
+        // Act
+        var split = EquationRenderer.splitInTwoSides(defaultEquation.variableMembers(), defaultEquation.nonVariableMembers(), 1);
+        var firstSideVariableMembers = split.get("firstSideVariableMembers");
+        var firstSideNonVariableMembers = split.get("firstSideNonVariableMembers");
+        var secondSideVariableMembers = split.get("secondSideVariableMembers");
+        var secondSideNonVariableMembers = split.get("secondSideNonVariableMembers");
+
+        // Assert
+        assertEquals(expectedFirstSideVariableMembers, firstSideVariableMembers);
+        assertEquals(expectedFirstSideNonVariableMembers, firstSideNonVariableMembers);
+        assertEquals(emptyArray, secondSideVariableMembers);
+        assertEquals(expectedSecondSideNonVariableMembers, secondSideNonVariableMembers);
     }
 }
