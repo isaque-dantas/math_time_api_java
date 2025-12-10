@@ -1,168 +1,108 @@
 package domain;
 
-import java.lang.reflect.Array;
-import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 public class EquationRenderer {
     public static String render(Equation equation, RenderingOptions options) {
         StringBuilder rendered = new StringBuilder();
 
-        HashMap<String, ArrayList<Float>> splitted = splitInTwoSides(equation.variableMembers(), equation.nonVariableMembers(), options.quantityOfMembersOn2ndSide());
-        ArrayList<Float> firstSideVariableMembers = splitted.get("firstSideVariableMembers");
-        ArrayList<Float> firstSideNonVariableMembers = splitted.get("firstSideNonVariableMembers");
-        ArrayList<Float> secondSideVariableMembers = splitted.get("secondSideVariableMembers");
-        ArrayList<Float> secondSideNonVariableMembers = splitted.get("secondSideNonVariableMembers");
+        Map<String, List<Member>> split = splitInTwoSides(equation.members(), options.quantityOfMembersOn2ndSide());
+        List<Member> firstSide = split.get("firstSide");
+        List<Member> secondSide = split.get("secondSide");
 
-        rendered.append(EquationRenderer.renderSide(firstSideVariableMembers, firstSideNonVariableMembers, options));
+        rendered.append(renderSide(firstSide, options));
         rendered.append(" = ");
-        rendered.append(EquationRenderer.renderSide(secondSideVariableMembers, secondSideNonVariableMembers, options));
+        rendered.append(renderSide(secondSide, options));
 
         return rendered.toString();
     }
 
-    public static HashMap<String, ArrayList<Float>> splitInTwoSides(ArrayList<Float> variableMembers, ArrayList<Float> nonVariableMembers, int quantityOfMembersOn2ndSide) {
-        int variableMembersSize = variableMembers.size();
-        int nonVariableMembersSize = nonVariableMembers.size();
-        int totalSize = variableMembersSize + nonVariableMembersSize;
+    public static Map<String, List<Member>> splitInTwoSides(List<Member> members, int quantityOfMembersOn2ndSide) {
+        final List<Member> zeroSide = List.of(new Member(false, 0));
 
         // CASE A
         if (quantityOfMembersOn2ndSide == 0) {
-            ArrayList<Float> secondSideNonVariableMembers = new ArrayList<>();
-            secondSideNonVariableMembers.add(0F);
-
-            return new HashMap<>() {
-                {
-                    put("firstSideVariableMembers", variableMembers);
-                    put("firstSideNonVariableMembers", nonVariableMembers);
-                    put("secondSideVariableMembers", new ArrayList<>());
-                    put("secondSideNonVariableMembers", secondSideNonVariableMembers);
-                }
-            };
+            return Map.of(
+                    "firstSide", members,
+                    "secondSide", zeroSide
+            );
         }
 
         // CASE B
-        if (quantityOfMembersOn2ndSide >= totalSize) {
-            ArrayList<Float> firstSideNonVariableMembers = new ArrayList<>();
-            firstSideNonVariableMembers.add(0F);
+        if (quantityOfMembersOn2ndSide >= members.size()) {
+            final List<Member> membersWithOppositeSignal = (
+                    members
+                            .stream()
+                            .map(EquationRenderer::getMemberWithOppositeSignal)
+                            .toList()
+            );
 
-            ArrayList<Float> secondSideVariableMembers = new ArrayList<>();
-            for (float member : variableMembers) {
-                secondSideVariableMembers.add(member * -1);
-            }
-
-            ArrayList<Float> secondSideNonVariableMembers = new ArrayList<>();
-            for (float member : nonVariableMembers) {
-                secondSideNonVariableMembers.add(member * -1);
-            }
-
-            return new HashMap<>() {
-                {
-                    put("firstSideVariableMembers", new ArrayList<>());
-                    put("firstSideNonVariableMembers", firstSideNonVariableMembers);
-                    put("secondSideVariableMembers", secondSideVariableMembers);
-                    put("secondSideNonVariableMembers", secondSideNonVariableMembers);
-                }
-            };
+            return Map.of(
+                    "firstSide", zeroSide,
+                    "secondSide", membersWithOppositeSignal
+            );
         }
 
         // CASE C
-        if (quantityOfMembersOn2ndSide == nonVariableMembersSize) {
-            return new HashMap<>() {
-                {
-                    put("firstSideVariableMembers", variableMembers);
-                    put("firstSideNonVariableMembers", new ArrayList<>());
-                    put("secondSideVariableMembers", new ArrayList<>());
-                    put("secondSideNonVariableMembers", nonVariableMembers);
-                }
-            };
-        }
+        final List<Member> firstSide = members.subList(0, members.size() - quantityOfMembersOn2ndSide);
+        final List<Member> secondSide = (
+                members
+                        .subList(members.size() - quantityOfMembersOn2ndSide, members.size())
+                        .stream()
+                        .map(EquationRenderer::getMemberWithOppositeSignal)
+                        .toList()
+        );
 
-        // CASE D
-        if (quantityOfMembersOn2ndSide < nonVariableMembersSize) {
-            ArrayList<Float> firstSideNonVariableMembers = new ArrayList<>();
-            ArrayList<Float> secondSideNonVariableMembers = new ArrayList<>();
-
-            for (int i = 0; i < nonVariableMembersSize - quantityOfMembersOn2ndSide; i++) {
-                firstSideNonVariableMembers.add(nonVariableMembers.get(i));
-            }
-
-            for (int i = nonVariableMembersSize - quantityOfMembersOn2ndSide; i < nonVariableMembersSize; i++) {
-                secondSideNonVariableMembers.add(nonVariableMembers.get(i) * -1);
-            }
-
-            return new HashMap<>() {
-                {
-                    put("firstSideVariableMembers", variableMembers);
-                    put("firstSideNonVariableMembers", firstSideNonVariableMembers);
-                    put("secondSideVariableMembers", new ArrayList<>());
-                    put("secondSideNonVariableMembers", secondSideNonVariableMembers);
-                }
-            };
-        }
-
-        // CASE E
-        // The last case: quantitOfMembersOn2ndSize < totalSize
-
-        ArrayList<Float> firstSideVariableMembers = new ArrayList<>();
-        ArrayList<Float> secondSideVariableMembers = new ArrayList<>();
-
-        int quantityOfVariableMembersOn2ndSide = quantityOfMembersOn2ndSide - nonVariableMembersSize;
-
-        for (int i = 0; i < variableMembersSize - quantityOfVariableMembersOn2ndSide; i++) {
-            firstSideVariableMembers.add(variableMembers.get(i));
-        }
-
-        for (int i = variableMembersSize - quantityOfVariableMembersOn2ndSide; i < variableMembersSize; i++) {
-            secondSideVariableMembers.add(variableMembers.get(i) * -1);
-        }
-
-        return new HashMap<>() {
-            {
-                put("firstSideVariableMembers", firstSideVariableMembers);
-                put("firstSideNonVariableMembers", new ArrayList<>());
-                put("secondSideVariableMembers", secondSideVariableMembers);
-                put("secondSideNonVariableMembers", nonVariableMembers);
-            }
-        };
+        return Map.of(
+                "firstSide", firstSide,
+                "secondSide", secondSide
+        );
     }
 
-    public static String renderSide(ArrayList<Float> variableMembers, ArrayList<Float> nonVariableMembers, RenderingOptions options) {
-        StringBuilder rendered = new StringBuilder();
-
-        for (int i = 0; i < variableMembers.size(); i++) {
-            String renderedMember = EquationRenderer.renderMember(
-                    variableMembers.get(i),
-                    String.valueOf(options.variableRepresentation()),
-                    i == 0
-            );
-            rendered.append(renderedMember);
-        }
-
-        for (Float nonVariableMember : nonVariableMembers) {
-            String renderedMember = EquationRenderer.renderMember(
-                    nonVariableMember,
-                    "",
-                    rendered.isEmpty()
-            );
-            rendered.append(renderedMember);
-        }
-
-        return rendered.toString();
+    public static Member getMemberWithOppositeSignal(Member member) {
+        return new Member(member.has_variable(), member.value() * -1);
     }
 
-    public static String renderMember(float member, String variableRepresentation, boolean isFirst) {
-        if (isFirst) return EquationRenderer.renderValue(member) + variableRepresentation;
+    public static String renderSide(List<Member> members, RenderingOptions options) {
+        if (members.isEmpty()) return "";
 
-        char signal = member > 0 ? '+' : '-';
+        final String firstRenderedMember = renderMember(
+                members.getFirst(),
+                getRepresentationForMember(members.getFirst(), options.variableRepresentation()),
+                true
+        );
+
+        final String otherRenderedMembers = members
+                .subList(1, members.size())
+                .stream()
+                .map(member -> renderMember(
+                        member,
+                        getRepresentationForMember(member, options.variableRepresentation()),
+                        false)
+                )
+                .collect(Collectors.joining());
+
+        return firstRenderedMember + otherRenderedMembers;
+    }
+
+    private static String getRepresentationForMember(Member member, Character representation) {
+        return member.has_variable() ? String.valueOf(representation) : "";
+    }
+
+    public static String renderMember(Member member, String variableRepresentation, boolean isFirst) {
+        if (isFirst) return renderValue(member.value()) + variableRepresentation;
+
+        char signal = member.value() > 0 ? '+' : '-';
         return " " +
                 signal +
                 " " +
-                EquationRenderer.renderValue(Math.abs(member)) +
+                renderValue(Math.abs(member.value())) +
                 variableRepresentation;
     }
 
-    public static String renderValue(float value) {
+    public static String renderValue(double value) {
         if (value == (int) value) return String.valueOf((int) value);
         return String.valueOf(value);
     }

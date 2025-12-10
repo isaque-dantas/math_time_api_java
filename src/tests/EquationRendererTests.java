@@ -1,5 +1,6 @@
 package tests;
 
+import domain.Member;
 import domain.EquationRenderer;
 import domain.Equation;
 
@@ -8,30 +9,20 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import domain.RenderingOptions;
 import org.junit.jupiter.api.Test;
 
-import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 public class EquationRendererTests {
-    ArrayList<Float> variableMembers = new ArrayList<>() {
-        {
-            add(2F);
-            add(1F);
-        }
-    };
+    List<Member> zeroSide = List.of(new Member(false, 0));
 
-    ArrayList<Float> nonVariableMembers = new ArrayList<>() {
-        {
-            add(3F);
-            add(4F);
-        }
-    };
-    ArrayList<Float> membersWithZero = new ArrayList<>() {
-        {
-            add(0F);
-        }
-    };
-    ArrayList<Float> emptyArray = new ArrayList<>();
+    List<Member> defaultMembers = List.of(
+            new Member(true, 2.0),
+            new Member(true, 1.0),
+            new Member(false, 3.0),
+            new Member(false, 4.0)
+    );
 
-    Equation defaultEquation = new Equation(variableMembers, nonVariableMembers, 0);
+    Equation defaultEquation = new Equation(defaultMembers, 0);
     RenderingOptions defaultRenderingOptions = new RenderingOptions('x', false, 0);
 
     @Test
@@ -42,11 +33,14 @@ public class EquationRendererTests {
 
     @Test
     void testRender_WithNegative() {
-        ArrayList<Float> nonVariableMembers = new ArrayList<>();
-        nonVariableMembers.add(-2F);
-        nonVariableMembers.add(3F);
+        List<Member> members = List.of(
+                new Member(true, 2.0),
+                new Member(true, 1.0),
+                new Member(false, -2.0),
+                new Member(false, 3.0)
+        );
 
-        Equation equation = new Equation(variableMembers, nonVariableMembers, 0);
+        Equation equation = new Equation(members, 0);
 
         String renderedEquation = EquationRenderer.render(equation, defaultRenderingOptions);
         assertEquals("2x + 1x - 2 + 3 = 0", renderedEquation);
@@ -54,14 +48,24 @@ public class EquationRendererTests {
 
     @Test
     void testRender_WithEmptyNonVariableMembers() {
-        Equation equation = new Equation(variableMembers, new ArrayList<>(), 0);
+        List<Member> members = List.of(
+                new Member(true, 2.0),
+                new Member(true, 1.0)
+        );
+
+        Equation equation = new Equation(members, 0);
         String renderedEquation = EquationRenderer.render(equation, defaultRenderingOptions);
         assertEquals("2x + 1x = 0", renderedEquation);
     }
 
     @Test
     void testRender_WithEmptyVariableMembers() {
-        Equation equation = new Equation(new ArrayList<>(), nonVariableMembers, 0);
+        List<Member> members = List.of(
+                new Member(false, 3.0),
+                new Member(false, 4.0)
+        );
+
+        Equation equation = new Equation(members, 0);
         String renderedEquation = EquationRenderer.render(equation, defaultRenderingOptions);
         assertEquals("3 + 4 = 0", renderedEquation);
     }
@@ -74,70 +78,55 @@ public class EquationRendererTests {
     }
 
     @Test
-    void testSplitInTwoSides_CaseA() {
+    void testSplitInTwoSides_NoMembersOn2ndSide() {
         // Act
-        var split = EquationRenderer.splitInTwoSides(defaultEquation.variableMembers(), defaultEquation.nonVariableMembers(), 0);
-        var firstSideVariableMembers = split.get("firstSideVariableMembers");
-        var firstSideNonVariableMembers = split.get("firstSideNonVariableMembers");
-        var secondSideVariableMembers = split.get("secondSideVariableMembers");
-        var secondSideNonVariableMembers = split.get("secondSideNonVariableMembers");
+        Map<String, List<Member>> split = EquationRenderer.splitInTwoSides(defaultEquation.members(), 0);
+        var firstSide = split.get("firstSide");
+        var secondSide = split.get("secondSide");
 
         // Assert
-        assertEquals(defaultEquation.variableMembers(), firstSideVariableMembers);
-        assertEquals(defaultEquation.nonVariableMembers(), firstSideNonVariableMembers);
-        assertEquals(emptyArray, secondSideVariableMembers);
-        assertEquals(membersWithZero, secondSideNonVariableMembers);
+        assertEquals(defaultEquation.members(), firstSide);
+        assertEquals(zeroSide, secondSide);
     }
 
     @Test
-    void testSplitInTwoSides_CaseB() {
+    void testSplitInTwoSides_AllMembersOn2ndSide() {
         // Arrange
-        var expectedSecondSideVariableMembers = new ArrayList<Float>();
-        expectedSecondSideVariableMembers.add(-2F);
-        expectedSecondSideVariableMembers.add(-1F);
-
-        var expectedSecondSideNonVariableMembers = new ArrayList<Float>();
-        expectedSecondSideNonVariableMembers.add(-3F);
-        expectedSecondSideNonVariableMembers.add(-4F);
+        var expectedSecondSide = List.of(
+                new Member(true, -2.0),
+                new Member(true, -1.0),
+                new Member(false, -3.0),
+                new Member(false, -4.0)
+        );
 
         // Act
-        var split = EquationRenderer.splitInTwoSides(defaultEquation.variableMembers(), defaultEquation.nonVariableMembers(), 10);
-        var firstSideVariableMembers = split.get("firstSideVariableMembers");
-        var firstSideNonVariableMembers = split.get("firstSideNonVariableMembers");
-        var secondSideVariableMembers = split.get("secondSideVariableMembers");
-        var secondSideNonVariableMembers = split.get("secondSideNonVariableMembers");
+        var split = EquationRenderer.splitInTwoSides(defaultEquation.members(), 10);
+        var firstSide = split.get("firstSide");
+        var secondSide = split.get("secondSide");
 
         // Assert
-        assertEquals(emptyArray, firstSideVariableMembers);
-        assertEquals(membersWithZero, firstSideNonVariableMembers);
-        assertEquals(expectedSecondSideVariableMembers, secondSideVariableMembers);
-        assertEquals(expectedSecondSideNonVariableMembers, secondSideNonVariableMembers);
+        assertEquals(zeroSide, firstSide);
+        assertEquals(expectedSecondSide, secondSide);
     }
 
     @Test
-    void testSplitInTwoSides_CaseD() {
+    void testSplitInTwoSides_SomeMembersOnEitherSide() {
         // Arrange
-        var expectedFirstSideVariableMembers = new ArrayList<Float>();
-        expectedFirstSideVariableMembers.add(2F);
-        expectedFirstSideVariableMembers.add(1F);
+        var expectedFirstSide = List.of(
+                new Member(true, 2.0),
+                new Member(true, 1.0),
+                new Member(false, 3.0)
+        );
 
-        var expectedFirstSideNonVariableMembers = new ArrayList<Float>();
-        expectedFirstSideNonVariableMembers.add(3F);
-
-        var expectedSecondSideNonVariableMembers = new ArrayList<Float>();
-        expectedSecondSideNonVariableMembers.add(-4F);
+        var expectedSecondSide = List.of(new Member(false, -4.0));
 
         // Act
-        var split = EquationRenderer.splitInTwoSides(defaultEquation.variableMembers(), defaultEquation.nonVariableMembers(), 1);
-        var firstSideVariableMembers = split.get("firstSideVariableMembers");
-        var firstSideNonVariableMembers = split.get("firstSideNonVariableMembers");
-        var secondSideVariableMembers = split.get("secondSideVariableMembers");
-        var secondSideNonVariableMembers = split.get("secondSideNonVariableMembers");
+        var split = EquationRenderer.splitInTwoSides(defaultEquation.members(), 1);
+        var firstSide = split.get("firstSide");
+        var secondSide = split.get("secondSide");
 
         // Assert
-        assertEquals(expectedFirstSideVariableMembers, firstSideVariableMembers);
-        assertEquals(expectedFirstSideNonVariableMembers, firstSideNonVariableMembers);
-        assertEquals(emptyArray, secondSideVariableMembers);
-        assertEquals(expectedSecondSideNonVariableMembers, secondSideNonVariableMembers);
+        assertEquals(expectedFirstSide, firstSide);
+        assertEquals(expectedSecondSide, secondSide);
     }
 }

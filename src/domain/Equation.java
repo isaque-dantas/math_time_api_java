@@ -1,10 +1,9 @@
 package domain;
 
-import java.util.ArrayList;
+import java.util.List;
 
 public record Equation(
-        ArrayList<Float> variableMembers,
-        ArrayList<Float> nonVariableMembers,
-        float answer
+        List<Member> members,
+        double answer
 ) {
 }
